@@ -1,37 +1,87 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ESP32 Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="UTF-8">
+  <title>Soil Moisture Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; }
+    canvas { max-width: 800px; }
+  </style>
 </head>
 <body>
-    <h2>Live Temperature Chart</h2>
-    <a href="/download" style="margin-bottom: 10px; display: inline-block;">
-        <button>Download CSV</button>
-    </a>
-    <canvas id="tempChart" width="600" height="300"></canvas>
 
-    <script>
-        async function loadData() {
-            const res = await fetch('/data');
-            const data = await res.json();
-            const labels = data.map(d => new Date(d.timestamp).toLocaleString());
-            const temps = data.map(d => d.temperature);
+  <h1>🌱 Soil Moisture Dashboard</h1>
 
-            new Chart(document.getElementById('tempChart').getContext('2d'), {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Temperature (°C)',
-                        data: temps,
-                        borderColor: 'blue',
-                        tension: 0.3
-                    }]
-                }
-            });
+  <label for="deviceSelect">Device:</label>
+  <select id="deviceSelect">
+    <option value="">All Devices</option>
+  </select>
+
+  <button onclick="downloadCSV()">Download CSV</button>
+
+  <canvas id="moistureChart"></canvas>
+
+  <script>
+    const chartCtx = document.getElementById('moistureChart').getContext('2d');
+    let moistureChart;
+
+    async function fetchData(deviceID = "") {
+      const res = await fetch(`/data${deviceID ? `?deviceID=${deviceID}` : ''}`);
+      const data = await res.json();
+
+      // Build device dropdown
+      const deviceSelect = document.getElementById("deviceSelect");
+      const devices = [...new Set(data.map(d => d.deviceID))];
+      deviceSelect.innerHTML = '<option value="">All Devices</option>';
+      devices.forEach(d => {
+        const opt = document.createElement("option");
+        opt.value = d;
+        opt.text = d;
+        deviceSelect.appendChild(opt);
+      });
+
+      const chartData = {
+        labels: data.map(d => new Date(d.timestamp).toLocaleString()),
+        datasets: [{
+          label: "Avg Moisture",
+          data: data.map(d => d.avgMoisture),
+          borderColor: "green",
+          fill: false,
+        }]
+      };
+
+      if (moistureChart) moistureChart.destroy();
+
+      moistureChart = new Chart(chartCtx, {
+        type: 'line',
+        data: chartData,
+        options: {
+          responsive: true,
+          scales: {
+            x: {
+              ticks: { autoSkip: true, maxTicksLimit: 15 }
+            },
+            y: {
+              beginAtZero: true
+            }
+          }
         }
-        loadData();
-    </script>
+      });
+    }
+
+    function downloadCSV() {
+      const deviceID = document.getElementById("deviceSelect").value;
+      const url = `/download${deviceID ? `?deviceID=${deviceID}` : ''}`;
+      window.open(url, "_blank");
+    }
+
+    document.getElementById("deviceSelect").addEventListener("change", (e) => {
+      fetchData(e.target.value);
+    });
+
+    fetchData();
+  </script>
+
 </body>
 </html>

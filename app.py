@@ -1,54 +1,57 @@
-from flask import Flask, request, jsonify, render_template, Response
+from flask import Flask, request, jsonify, send_file, render_template
+from flask_cors import CORS
 from pymongo import MongoClient
 from datetime import datetime
-from io import StringIO
 import os
+import io
 import csv
 
 app = Flask(__name__)
+CORS(app)
 
-# MongoDB URI
 MONGO_URI = os.environ.get('MONGO_URI') or "mongodb+srv://student:austral-clash-sawyer-blaze@espplantcluster.3yopiy3.mongodb.net/?retryWrites=true&w=majority&appName=ESPPlantCluster"
 client = MongoClient(MONGO_URI)
-db = client['esp_data']
-collection = db['sensor_readings']
+db = client["esp_data"]
+collection = db["moisture_readings"]
 
-@app.route('/')
-def home():
-    return "ESP32 + MongoDB API is running!"
+@app.route("/")
+def index():
+    return render_template("dashboard.html")
 
-@app.route('/upload', methods=['POST'])
+@app.route("/upload", methods=["POST"])
 def upload_data():
     data = request.get_json()
-    if not data or 'temperature' not in data:
-        return jsonify({'error': 'Missing data'}), 400
-    data['timestamp'] = datetime.utcnow()
+    if not data or "avgMoisture" not in data or "deviceID" not in data:
+        return jsonify({"error": "Invalid payload"}), 400
+
+    now = datetime.utcnow()
+    data["timestamp"] = now
+    data["date"] = now.strftime("%Y-%m-%d")
+
     collection.insert_one(data)
-    return jsonify({'message': 'Data saved'}), 200
+    return jsonify({"message": "Data stored successfully"}), 200
 
-@app.route('/data')
+@app.route("/data", methods=["GET"])
 def get_data():
-    data = list(collection.find({}, {'_id': 0}))
-    return jsonify(data)
+    device_id = request.args.get("deviceID")
+    query = {"deviceID": device_id} if device_id else {}
+    data = list(collection.find(query, {"_id": 0}))
+    return jsonify(data), 200
 
-@app.route('/dashboard')
-def dashboard():
-    return render_template('dashboard.html')
-
-@app.route('/download')
+@app.route("/download", methods=["GET"])
 def download_csv():
-    data = list(collection.find({}, {'_id': 0}))
-    output = StringIO()
-    writer = csv.writer(output)
-    writer.writerow(['temperature', 'timestamp'])
-    for entry in data:
-        writer.writerow([entry['temperature'], entry['timestamp']])
+    device_id = request.args.get("deviceID")
+    query = {"deviceID": device_id} if device_id else {}
+    data = list(collection.find(query, {"_id": 0}))
+
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=["deviceID", "avgMoisture", "timestamp", "date"])
+    writer.writeheader()
+    for row in data:
+        writer.writerow(row)
+
     output.seek(0)
-    return Response(
-        output.getvalue(),
-        mimetype='text/csv',
-        headers={'Content-Disposition': 'attachment;filename=sensor_data.csv'}
-    )
+    return send_file(io.BytesIO(output.getvalue().encode()), mimetype="text/csv", as_attachment=True, download_name="moisture_data.csv")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
