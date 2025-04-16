@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ESP32 Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h2>Live Temperature Chart</h2>
+    <a href="/download" style="margin-bottom: 10px; display: inline-block;">
+        <button>Download CSV</button>
+    </a>
+    <canvas id="tempChart" width="600" height="300"></canvas>
+
+    <script>
+        async function loadData() {
+            const res = await fetch('/data');
+            const data = await res.json();
+            const labels = data.map(d => new Date(d.timestamp).toLocaleString());
+            const temps = data.map(d => d.temperature);
+
+            new Chart(document.getElementById('tempChart').getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Temperature (°C)',
+                        data: temps,
+                        borderColor: 'blue',
+                        tension: 0.3
+                    }]
+                }
+            });
+        }
+        loadData();
+    </script>
+</body>
+</html>

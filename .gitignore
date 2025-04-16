@@ -1,0 +1,40 @@
+# Byte-compiled / cache / logs
+__pycache__/
+*.py[cod]
+*.log
+
+# Flask cache and environment
+instance/
+.env
+*.env
+
+# VSCode
+.vscode/
+
+# MacOS & Linux system files
+.DS_Store
+Thumbs.db
+
+# Python virtual environments
+venv/
+env/
+
+# Pip environment
+pip-log.txt
+
+# Python egg files
+*.egg-info/
+.eggs/
+
+# PyInstaller
+dist/
+build/
+
+# Render / deployment cache (just in case)
+render.yaml
+
+# Jupyter notebooks (optional)
+*.ipynb
+
+# Node stuff (if ever used for frontend)
+node_modules/
